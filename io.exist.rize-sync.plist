@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>io.exist.rize-sync</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/daniel/VibeCode/exist-rize-integration/.venv/bin/python</string>
+        <string>/Users/daniel/VibeCode/exist-rize-integration/sync.py</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/daniel/VibeCode/exist-rize-integration</string>
+
+    <!-- Run every hour at minute 0 -->
+    <key>StartCalendarInterval</key>
+    <array>
+        <!-- Hourly during work hours (6am-9pm) -->
+        <dict>
+            <key>Minute</key>
+            <integer>0</integer>
+            <key>Hour</key>
+            <integer>6</integer>
+        </dict>
+        <dict>
+            <key>Minute</key>
+            <integer>0</integer>
+            <key>Hour</key>
+            <integer>7</integer>
+        </dict>
+        <dict>
+            <key>Minute</key>
+            <integer>0</integer>
+            <key>Hour</key>
+            <integer>8</integer>
+        </dict>
+        <dict>
+            <key>Minute</key>
+            <integer>0</integer>
+            <key>Hour</key>
+            <integer>9</integer>
+        </dict>
+        <dict>
+            <key>Minute</key>
+            <integer>0</integer>
+            <key>Hour</key>
+            <integer>10</integer>
+        </dict>
+        <dict>
+            <key>Minute</key>
+            <integer>0</integer>
+            <key>Hour</key>
+            <integer>11</integer>
+        </dict>
+        <dict>
+            <key>Minute</key>
+            <integer>0</integer>
+            <key>Hour</key>
+            <integer>12</integer>
+        </dict>
+        <dict>
+            <key>Minute</key>
+            <integer>0</integer>
+            <key>Hour</key>
+            <integer>13</integer>
+        </dict>
+        <dict>
+            <key>Minute</key>
+            <integer>0</integer>
+            <key>Hour</key>
+            <integer>14</integer>
+        </dict>
+        <dict>
+            <key>Minute</key>
+            <integer>0</integer>
+            <key>Hour</key>
+            <integer>15</integer>
+        </dict>
+        <dict>
+            <key>Minute</key>
+            <integer>0</integer>
+            <key>Hour</key>
+            <integer>16</integer>
+        </dict>
+        <dict>
+            <key>Minute</key>
+            <integer>0</integer>
+            <key>Hour</key>
+            <integer>17</integer>
+        </dict>
+        <dict>
+            <key>Minute</key>
+            <integer>0</integer>
+            <key>Hour</key>
+            <integer>18</integer>
+        </dict>
+        <dict>
+            <key>Minute</key>
+            <integer>0</integer>
+            <key>Hour</key>
+            <integer>19</integer>
+        </dict>
+        <dict>
+            <key>Minute</key>
+            <integer>0</integer>
+            <key>Hour</key>
+            <integer>20</integer>
+        </dict>
+        <!-- End of day sync at 9pm -->
+        <dict>
+            <key>Minute</key>
+            <integer>0</integer>
+            <key>Hour</key>
+            <integer>21</integer>
+        </dict>
+    </array>
+
+    <key>StandardOutPath</key>
+    <string>/Users/daniel/VibeCode/exist-rize-integration/sync.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/Users/daniel/VibeCode/exist-rize-integration/sync.log</string>
+
+    <!-- Don't run if computer is on battery (optional, remove if you want it to always run) -->
+    <key>LowPriorityIO</key>
+    <true/>
+</dict>
+</plist>
