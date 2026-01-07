@@ -4,16 +4,21 @@ A Python script that syncs time tracking data from [Rize](https://rize.io) to [E
 
 ## What it does
 
-- Reads **focus time** and **tracked time** from Rize's GraphQL API
-- Writes them as custom duration attributes to Exist.io
+- Reads time tracking metrics from Rize's GraphQL API
+- Writes them as custom attributes to Exist.io
 - Runs automatically on a schedule (6am-9pm, hourly)
 
 ### Attributes synced
 
-| Exist Attribute | Source | Description |
-|-----------------|--------|-------------|
-| `rize_focus_time` | Rize `focusTime` | Time spent in focused work (minutes) |
-| `rize_tracked_time` | Rize `trackedTime` | Total tracked time (minutes) |
+| Exist Attribute | Source | Type | Description |
+|-----------------|--------|------|-------------|
+| `focus_time` | `focusTime` | Duration | Time spent in focused work |
+| `tracked_time` | `trackedTime` | Duration | Total tracked time |
+| `break_time` | `breakTime` | Duration | Time spent on breaks |
+| `meeting_time` | `meetingTime` | Duration | Time in meetings |
+| `coding_time` | Category "code" | Duration | Time spent coding |
+| `design_time` | Category "design" | Duration | Time spent designing |
+| `focus_sessions` | Session count | Integer | Number of focus blocks |
 
 ## Requirements
 
@@ -109,6 +114,9 @@ python3 sync.py --date 2026-01-06
 
 # Re-run setup (if attributes were deleted)
 python3 sync.py --setup
+
+# Migrate from old attribute names (one-time, if upgrading)
+python3 sync.py --migrate
 ```
 
 ### Scheduler management

@@ -2,12 +2,13 @@
 """
 Sync Rize time tracking data to Exist.io custom attributes.
 
-This script fetches focus time and tracked time from Rize and writes
-them to Exist.io as custom duration attributes.
+This script fetches time metrics from Rize and writes them to Exist.io
+as custom attributes.
 
 Usage:
     python sync.py           # Sync today's data
     python sync.py --setup   # First-time setup (create attributes)
+    python sync.py --migrate # Migrate from old rize_* attributes to new names
 """
 import argparse
 import os
@@ -16,23 +17,53 @@ from datetime import date
 
 from dotenv import load_dotenv
 
-from rize_client import get_daily_summary
+from rize_client import get_all_daily_data
 from exist_client import ExistClient
 
 
-# Attribute configuration
+# Attribute configuration - clean names without service prefix
 ATTRIBUTES = {
-    "rize_focus_time": {
-        "label": "Rize Focus Time",
+    # Duration attributes (value in minutes)
+    "focus_time": {
+        "label": "Focus time",
         "value_type": "duration",
         "group": "productivity",
     },
-    "rize_tracked_time": {
-        "label": "Rize Tracked Time",
+    "tracked_time": {
+        "label": "Tracked time",
         "value_type": "duration",
+        "group": "productivity",
+    },
+    "break_time": {
+        "label": "Break time",
+        "value_type": "duration",
+        "group": "productivity",
+    },
+    "meeting_time": {
+        "label": "Meeting time",
+        "value_type": "duration",
+        "group": "productivity",
+    },
+    "coding_time": {
+        "label": "Coding time",
+        "value_type": "duration",
+        "group": "productivity",
+    },
+    "design_time": {
+        "label": "Design time",
+        "value_type": "duration",
+        "group": "productivity",
+    },
+    # Count attributes (integer value)
+    "focus_sessions": {
+        "label": "Focus sessions",
+        "value_type": "integer",
         "group": "productivity",
     },
 }
+
+# Old attributes to migrate from
+OLD_ATTRIBUTES = ["rize_focus_time", "rize_tracked_time"]
 
 
 def load_config() -> dict:
@@ -69,6 +100,30 @@ def load_config() -> dict:
     return config
 
 
+def get_exist_client(config: dict) -> ExistClient:
+    """Create an ExistClient from config."""
+    return ExistClient(
+        access_token=config["EXIST_ACCESS_TOKEN"],
+        refresh_token=config.get("EXIST_REFRESH_TOKEN"),
+        client_id=config.get("EXIST_CLIENT_ID"),
+        client_secret=config.get("EXIST_CLIENT_SECRET"),
+    )
+
+
+def migrate_attributes(exist: ExistClient):
+    """Release old rize_* attributes."""
+    print("Migrating from old attribute names...")
+
+    for attr_name in OLD_ATTRIBUTES:
+        try:
+            exist.release_attribute(attr_name)
+            print(f"  Released: {attr_name}")
+        except Exception as e:
+            print(f"  Could not release {attr_name}: {e}")
+
+    print("Migration complete. Now run --setup to create new attributes.")
+
+
 def setup_attributes(exist: ExistClient):
     """Create and acquire the custom attributes in Exist."""
     print("Setting up Exist attributes...")
@@ -86,7 +141,7 @@ def setup_attributes(exist: ExistClient):
             print(f"  Already own: {attr_name}")
             continue
 
-        # Try to create the attribute (will fail if it already exists)
+        # Try to create the attribute
         try:
             result = exist.create_attribute(
                 label=attr_config["label"],
@@ -95,21 +150,19 @@ def setup_attributes(exist: ExistClient):
             )
             print(f"  Created: {attr_name}")
 
-            # Check for success/failure in response
-            if isinstance(result, dict):
-                if result.get("success"):
-                    print(f"    -> {result['success']}")
-                if result.get("failed"):
-                    print(f"    -> Failed: {result['failed']}")
+            if isinstance(result, list) and result:
+                created = result[0]
+                if "name" in created:
+                    print(f"    -> {created['name']}")
+                if "error" in created:
+                    print(f"    -> Error: {created['error']}")
 
         except Exception as e:
-            # Attribute might already exist, try to acquire it
             print(f"  Could not create {attr_name}: {e}")
-            print(f"  Attempting to acquire existing attribute...")
 
         # Try to acquire ownership
         try:
-            exist.acquire_attribute(attr_name)
+            result = exist.acquire_attribute(attr_name)
             print(f"  Acquired: {attr_name}")
         except Exception as e:
             print(f"  Could not acquire {attr_name}: {e}")
@@ -127,42 +180,49 @@ def sync_data(config: dict, target_date: date = None):
     # Fetch from Rize
     print("  Fetching from Rize...")
     try:
-        rize_data = get_daily_summary(config["RIZE_API_KEY"], target_date)
+        rize_data = get_all_daily_data(config["RIZE_API_KEY"], target_date)
     except Exception as e:
         print(f"  Error fetching Rize data: {e}")
         return False
 
-    focus_seconds = rize_data["focus_time"]
-    tracked_seconds = rize_data["tracked_time"]
+    # Convert seconds to minutes for duration attributes
+    metrics = {
+        "focus_time": rize_data["focus_time"] // 60,
+        "tracked_time": rize_data["tracked_time"] // 60,
+        "break_time": rize_data["break_time"] // 60,
+        "meeting_time": rize_data["meeting_time"] // 60,
+        "coding_time": rize_data["coding_time"] // 60,
+        "design_time": rize_data["design_time"] // 60,
+        "focus_sessions": rize_data["focus_sessions"],  # count, not duration
+    }
 
-    # Convert seconds to minutes (Exist duration type uses minutes)
-    focus_minutes = focus_seconds // 60
-    tracked_minutes = tracked_seconds // 60
-
-    print(f"  Rize data: focus={focus_minutes}min, tracked={tracked_minutes}min")
+    print(f"  Rize data:")
+    print(f"    focus={metrics['focus_time']}min, tracked={metrics['tracked_time']}min")
+    print(f"    break={metrics['break_time']}min, meeting={metrics['meeting_time']}min")
+    print(f"    coding={metrics['coding_time']}min, design={metrics['design_time']}min")
+    print(f"    focus_sessions={metrics['focus_sessions']}")
 
     # Update Exist
-    exist = ExistClient(
-        access_token=config["EXIST_ACCESS_TOKEN"],
-        refresh_token=config.get("EXIST_REFRESH_TOKEN"),
-        client_id=config.get("EXIST_CLIENT_ID"),
-        client_secret=config.get("EXIST_CLIENT_SECRET"),
-    )
+    exist = get_exist_client(config)
 
     print("  Updating Exist...")
-    try:
-        result = exist.update_attribute("rize_focus_time", target_date, focus_minutes)
-        print(f"    rize_focus_time: {result}")
+    success_count = 0
+    fail_count = 0
 
-        result = exist.update_attribute("rize_tracked_time", target_date, tracked_minutes)
-        print(f"    rize_tracked_time: {result}")
+    for attr_name, value in metrics.items():
+        try:
+            result = exist.update_attribute(attr_name, target_date, value)
+            if result.get("success"):
+                success_count += 1
+            elif result.get("failed"):
+                fail_count += 1
+                print(f"    {attr_name}: FAILED - {result['failed']}")
+        except Exception as e:
+            fail_count += 1
+            print(f"    {attr_name}: ERROR - {e}")
 
-    except Exception as e:
-        print(f"  Error updating Exist: {e}")
-        return False
-
-    print("  Sync complete!")
-    return True
+    print(f"  Done: {success_count} updated, {fail_count} failed")
+    return fail_count == 0
 
 
 def main():
@@ -175,6 +235,11 @@ def main():
         help="First-time setup: create custom attributes in Exist",
     )
     parser.add_argument(
+        "--migrate",
+        action="store_true",
+        help="Release old rize_* attributes before setting up new ones",
+    )
+    parser.add_argument(
         "--date",
         type=str,
         help="Sync a specific date (YYYY-MM-DD format)",
@@ -182,15 +247,11 @@ def main():
     args = parser.parse_args()
 
     config = load_config()
+    exist = get_exist_client(config)
 
-    exist = ExistClient(
-        access_token=config["EXIST_ACCESS_TOKEN"],
-        refresh_token=config.get("EXIST_REFRESH_TOKEN"),
-        client_id=config.get("EXIST_CLIENT_ID"),
-        client_secret=config.get("EXIST_CLIENT_SECRET"),
-    )
-
-    if args.setup:
+    if args.migrate:
+        migrate_attributes(exist)
+    elif args.setup:
         setup_attributes(exist)
     else:
         target_date = None
