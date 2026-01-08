@@ -12,13 +12,17 @@ A Python script that syncs time tracking data from [Rize](https://rize.io) to [E
 
 | Exist Attribute | Source | Type | Description |
 |-----------------|--------|------|-------------|
-| `focus_time` | `focusTime` | Duration | Time spent in focused work |
-| `tracked_time` | `trackedTime` | Duration | Total tracked time |
-| `break_time` | `breakTime` | Duration | Time spent on breaks |
-| `meeting_time` | `meetingTime` | Duration | Time in meetings |
+| `focus_time` | Categories (focus=true) | Duration | Time in focus categories |
+| `tracked_time` | Categories (all) | Duration | Total tracked activity |
+| `break_time` | Categories (focus=false) | Duration | Time in non-focus categories |
+| `meeting_time` | Meeting sessions | Duration | Time in meetings |
 | `coding_time` | Category "code" | Duration | Time spent coding |
 | `design_time` | Category "design" | Duration | Time spent designing |
-| `focus_sessions` | Session count | Integer | Number of focus blocks |
+| `focus_sessions` | Sessions (started only) | Integer | Completed focus blocks |
+
+### Backfill
+
+Every sync automatically includes yesterday's data. This ensures late-night work gets captured even if you work past the last scheduled sync (9pm).
 
 ## Requirements
 
@@ -81,13 +85,20 @@ python3 sync.py
 
 You should see output like:
 ```
+=== Backfilling yesterday ===
 Syncing data for 2026-01-07...
   Fetching from Rize...
-  Rize data: focus=47min, tracked=67min
+  Rize data:
+    focus=143min, tracked=171min
+    break=28min, meeting=23min
+    coding=68min, design=0min
+    focus_sessions=3
   Updating Exist...
-    rize_focus_time: {'success': [...], 'failed': []}
-    rize_tracked_time: {'success': [...], 'failed': []}
-  Sync complete!
+  Done: 7 updated, 0 failed
+
+=== Syncing today ===
+Syncing data for 2026-01-08...
+  ...
 ```
 
 ### 5. Install automatic scheduling (macOS)
@@ -106,10 +117,13 @@ This installs a launchd service that runs the sync hourly from 6am-9pm.
 # Activate the virtual environment first
 source .venv/bin/activate
 
-# Sync today's data
+# Sync today + yesterday (default, catches late-night work)
 python3 sync.py
 
-# Sync a specific date
+# Sync only today (skip yesterday backfill)
+python3 sync.py --no-backfill
+
+# Sync a specific date only
 python3 sync.py --date 2026-01-06
 
 # Re-run setup (if attributes were deleted)
@@ -158,7 +172,9 @@ exist-rize-integration/
 
 - **Endpoint**: `https://api.rize.io/api/v1/graphql`
 - **Auth**: Bearer token (API key)
-- **Query used**: `summaries` with `bucketSize: "day"`
+- **Queries used**:
+  - `categories` - actual tracked time per category (with focus flags)
+  - `sessions` - focus/break/meeting session counts (filtered to started only)
 
 ### Exist API
 

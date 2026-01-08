@@ -13,7 +13,7 @@ Usage:
 import argparse
 import os
 import sys
-from datetime import date
+from datetime import date, timedelta
 
 from dotenv import load_dotenv
 
@@ -244,6 +244,11 @@ def main():
         type=str,
         help="Sync a specific date (YYYY-MM-DD format)",
     )
+    parser.add_argument(
+        "--no-backfill",
+        action="store_true",
+        help="Skip syncing yesterday's data",
+    )
     args = parser.parse_args()
 
     config = load_config()
@@ -254,11 +259,24 @@ def main():
     elif args.setup:
         setup_attributes(exist)
     else:
-        target_date = None
         if args.date:
+            # Specific date requested - just sync that date
             target_date = date.fromisoformat(args.date)
+            success = sync_data(config, target_date)
+        else:
+            # Default: sync today and yesterday (backfill)
+            today = date.today()
+            yesterday = today - timedelta(days=1)
 
-        success = sync_data(config, target_date)
+            success = True
+            if not args.no_backfill:
+                print("=== Backfilling yesterday ===")
+                success = sync_data(config, yesterday) and success
+                print()
+
+            print("=== Syncing today ===")
+            success = sync_data(config, today) and success
+
         sys.exit(0 if success else 1)
 
 
